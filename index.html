@@ -418,48 +418,11 @@ async function generateReport(){
   let scoreText = Object.entries(data.scores).map(([k,v]) => `${k}: ${v}`).join('\n');
   if(!scoreText) scoreText = 'No standardized test scores provided.';
 
-  const userPrompt = `Generate a full clinical ${data.assessType} assessment report for the following case.
-
-PATIENT INFORMATION:
-- Patient ID: ${data.patientId}
-- Age: ${data.age || 'Not specified'}
-- Gender: ${data.gender || 'Not specified'}
-- Referral Source: ${data.referral || 'Not specified'}
-- Referral Question: ${data.referralQ || 'Not specified'}
-
-SESSION NOTES / BEHAVIORAL OBSERVATIONS:
-${data.sessionNotes || 'No session notes provided.'}
-
-STANDARDIZED TEST SCORES:
-${scoreText}
-
-ADDITIONAL TEST NOTES:
-${data.testNotes || 'None.'}
-
-${data.files.length ? 'ATTACHED FILES (for reference): ' + data.files.join(', ') : ''}
-
-Generate a COMPREHENSIVE and THOROUGH clinical report. This must be detailed enough to serve as a real professional document (5-8 printed pages). Structure in EXACTLY these sections:
-
-1. REFERRAL & BACKGROUND — Include referral context, injury/presenting history, premorbid functioning, relevant medical history. Use subsections where appropriate (e.g., "Injury Context & Medical History", "Post-Injury Course").
-
-2. BEHAVIORAL OBSERVATIONS — Detailed observations organized by domain: cognitive-linguistic presentation, affective/mood presentation, fatigue/effort, behavioral engagement. Include specific clinical details.
-
-3. TEST RESULTS & INTERPRETATION — This is the most critical section. Organize by cognitive domain with subsections:
-   - Effort & Validity Measures
-   - Intellectual Functioning (WAIS-IV)
-   - Memory (WMS-IV, CVLT-II)
-   - Attention & Processing Speed (Trail Making, SDMT, Digit Span)
-   - Executive Functioning (Trail Making B, Rey CFT)
-   - Emotional/Psychological Functioning (PHQ-9, GAD-7, PCL-5, BDI-II)
-   For EACH test: state the score, standard score range, percentile rank, classification (Superior/High Average/Average/Low Average/Borderline/Extremely Low), 95% confidence interval, and write a full clinical interpretation paragraph explaining functional implications.
-
-4. CLINICAL FORMULATION — Integrate all findings into a cohesive diagnostic formulation. Discuss differential diagnoses, convergent evidence patterns, premorbid vs current functioning comparison, and functional impact.
-
-5. CONCLUSIONS — Summarize key findings, diagnostic impressions, and answer the referral questions directly. Address fitness to return to work if applicable.
-
-6. RECOMMENDATIONS — Provide 8-10 specific, actionable, numbered clinical recommendations covering treatment, further assessment, workplace accommodations, follow-up, and referrals.
-
-IMPORTANT: Where clinical judgment is required or information is missing, insert [REVIEW REQUIRED] tags. Write in third person, past tense, professional clinical tone suitable for a legal or insurance audience in Ontario, Canada. Be thorough — do not abbreviate or summarize. Every section must be substantive.`;
+  const userPrompt = `${data.assessType} report. Patient ${data.patientId}, ${data.age || '?'}yo ${data.gender || '?'}. Referred by ${data.referral || '?'}. Question: ${data.referralQ || '?'}
+Notes: ${data.sessionNotes || 'None.'}
+Scores: ${scoreText}
+${data.testNotes ? 'Test notes: ' + data.testNotes : ''}
+Generate 6 sections: 1.REFERRAL & BACKGROUND 2.BEHAVIORAL OBSERVATIONS 3.TEST RESULTS & INTERPRETATION (by domain, with scores/percentiles/classifications/interpretations) 4.CLINICAL FORMULATION 5.CONCLUSIONS 6.RECOMMENDATIONS (8+ numbered). Be thorough, use [REVIEW REQUIRED] where needed.`;
 
   try {
     const res = await fetch('/.netlify/functions/generate-report', {
