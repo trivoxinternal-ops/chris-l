@@ -258,7 +258,7 @@ select option{background:var(--bg2);color:var(--white)}
 <div class="disclaimer">
   This is a demonstration tool. In production, all patient data is processed within a PHIPA-compliant,<br>
   Canada-based secure environment. No real patient information should be entered in this demo.<br>
-  <span style="color:rgba(46,97,254,.5);margin-top:6px;display:inline-block">Powered by TRIVOX AI · trivox.ca</span>
+  <span style="color:rgba(46,97,254,.5);margin-top:6px;display:inline-block">Powered by TRIVOX AI · <a href="https://trivox.ca" target="_blank" style="color:rgba(46,97,254,.7)">trivox.ca</a></span>
 </div>
 
 <script>
@@ -466,7 +466,7 @@ IMPORTANT: Where clinical judgment is required or information is missing, insert
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system: 'You are an expert clinical neuropsychologist generating comprehensive psychological assessment reports for a registered psychologist in Ontario, Canada. Write thorough, detailed clinical reports suitable for legal, insurance, and clinical audiences. Use precise professional clinical language throughout. Every section must be substantive — never brief or surface-level. For TEST RESULTS & INTERPRETATION: organize by cognitive domain (e.g., Intellectual Functioning, Memory, Attention/Processing Speed, Executive Functioning, Emotional/Psychological Functioning), include the test name, raw score, standard score range, percentile, classification (e.g., Low Average, Borderline, Average), 95% confidence interval where applicable, and a clinical interpretation paragraph for each domain explaining what the score means functionally. For RECOMMENDATIONS: provide at least 6-8 specific, actionable clinical recommendations. Flag any areas needing clinical judgment with [REVIEW REQUIRED] tags. The report must be comprehensive enough to stand as a professional clinical document — typically 5-8 pages when printed.',
+        system: 'You are an expert clinical neuropsychologist in Ontario, Canada. Generate comprehensive, detailed assessment reports for legal/insurance audiences. Use professional clinical language. Organize test results by cognitive domain with scores, percentiles, classifications, and interpretations. Flag missing info with [REVIEW REQUIRED]. Be thorough — never abbreviate.',
         messages: [{role:'user', content: userPrompt}]
       })
     });
