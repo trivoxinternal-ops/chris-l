@@ -6,7 +6,7 @@
 <title>Clinical Report Engine — TRIVOX AI</title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -552,10 +552,32 @@ function renderReport(data, text){
   }
 
   function formatContent(c){
-    // Handle [REVIEW REQUIRED]
+    // [REVIEW REQUIRED]
     c = c.replace(/\[REVIEW REQUIRED\]/g, '<span class="review-tag">REVIEW REQUIRED</span>');
     // Bold
     c = c.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Subheaders (### or ##)
+    c = c.replace(/(?:^|\n)#{2,3}\s+(.+)/g, '\n<h5 style="color:var(--white);margin:14px 0 6px;font-size:13px">$1</h5>');
+    // Horizontal rules
+    c = c.replace(/(?:^|\n)---+/g, '');
+    // Markdown tables → clean HTML tables
+    c = c.replace(/(\|.+\|(?:\n\|.+\|)+)/g, function(table){
+      var rows = table.trim().split('\n').filter(function(r){ return !r.match(/^\|\s*[-:]+/); });
+      if(rows.length === 0) return '';
+      var html = '<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px">';
+      rows.forEach(function(row, ri){
+        var cells = row.split('|').filter(function(c){ return c.trim() !== ''; });
+        var tag = ri === 0 ? 'th' : 'td';
+        var bg = ri === 0 ? 'background:rgba(46,97,254,.1);font-weight:600;color:var(--cyan)' : '';
+        html += '<tr>';
+        cells.forEach(function(cell){
+          html += '<' + tag + ' style="padding:6px 10px;border:1px solid rgba(46,97,254,.15);text-align:left;' + bg + '">' + cell.trim() + '</' + tag + '>';
+        });
+        html += '</tr>';
+      });
+      html += '</table>';
+      return html;
+    });
     // Numbered lists
     c = c.replace(/(?:^|\n)(\d+)\.\s+/g, '\n<li>');
     if(c.includes('<li>')){
@@ -563,10 +585,10 @@ function renderReport(data, text){
       c = c.replace(/<\/ol>\s*<ol>/g, '');
     }
     // Paragraphs
-    c = c.split(/\n{2,}/).map(p => {
+    c = c.split(/\n{2,}/).map(function(p){
       p = p.trim();
-      if(!p || p.startsWith('<ol>') || p.startsWith('<li>')) return p;
-      return `<p>${p}</p>`;
+      if(!p || p.startsWith('<ol>') || p.startsWith('<li>') || p.startsWith('<table') || p.startsWith('<h5')) return p;
+      return '<p>' + p + '</p>';
     }).join('');
     return c;
   }
@@ -610,9 +632,15 @@ function downloadPDF() {
 
     if (!text) { alert('No report to download'); return; }
 
-    // Strip markdown
+    // Strip markdown formatting
     text = text.replace(/\*\*(.+?)\*\*/g, '$1');
-    text = text.replace(/#{1,3}\s*/g, '');
+    text = text.replace(/^#{1,3}\s+/gm, '');
+    text = text.replace(/^---+$/gm, '');
+    // Clean markdown tables: convert | col | col | to "col — col"
+    text = text.replace(/^\|[\s\-:|]+\|$/gm, '');
+    text = text.replace(/^\|(.+)\|$/gm, function(m, inner){
+      return inner.split('|').map(function(c){ return c.trim(); }).join('  —  ');
+    });
 
     var doc = new jsPDFClass();
     var pw = doc.internal.pageSize.getWidth();
@@ -621,28 +649,42 @@ function downloadPDF() {
     var mw = pw - m * 2;
     var y = 20;
 
+    // Header bar
+    doc.setFillColor(46, 97, 254);
+    doc.rect(0, 0, pw, 12, 'F');
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('TRIVOX AI  —  CLINICAL REPORT ENGINE', m, 7.5);
+    doc.text('DRAFT — FOR CLINICIAN REVIEW', pw - m, 7.5, { align: 'right' });
+
+    y = 22;
+
     // Title
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(46, 97, 254);
+    doc.setTextColor(30, 30, 30);
     doc.text((meta.assessmentType || 'Clinical Assessment') + ' Report', m, y);
     y += 7;
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
-    doc.text('Patient: ' + (meta.patientId || '-') + '  |  Date: ' + new Date().toLocaleDateString() + '  |  DRAFT', m, y);
+    doc.text('Patient: ' + (meta.patientId || '-') + '  |  Date: ' + new Date().toLocaleDateString() + '  |  Status: DRAFT', m, y);
     y += 5;
 
     doc.setDrawColor(46, 97, 254);
+    doc.setLineWidth(0.4);
     doc.line(m, y, pw - m, y);
     y += 8;
 
-    // Just render all text line by line
+    // Render line by line
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(30, 30, 30);
 
+    // Remove empty lines clusters
+    text = text.replace(/\n{3,}/g, '\n\n');
     var allLines = doc.splitTextToSize(text, mw);
 
     for (var i = 0; i < allLines.length; i++) {
@@ -653,17 +695,22 @@ function downloadPDF() {
 
       var line = allLines[i];
 
-      // Check if this line is a section header (all caps, known sections)
+      // Section headers
       if (line.match(/^[0-9.]*\s*(REFERRAL|BEHAVIORAL|TEST RESULTS|CLINICAL FORMULATION|CONCLUSIONS|RECOMMENDATIONS)/i)) {
-        y += 4;
+        y += 5;
+        if (y > ph - 20) { doc.addPage(); y = 20; }
+        doc.setFillColor(240, 244, 255);
+        doc.rect(m - 1, y - 4, mw + 2, 7, 'F');
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(46, 97, 254);
-        doc.text(line, m, y);
-        y += 5;
+        doc.text(line.replace(/^[0-9.]+\s*/, ''), m, y);
+        y += 7;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(30, 30, 30);
+      } else if (line.match(/^\s*$/)) {
+        y += 2;
       } else {
         doc.text(line, m, y);
         y += 4.2;
