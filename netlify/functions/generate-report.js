@@ -1,6 +1,4 @@
-exports.handler.timeout = 30;
-
-exports.handler = async (event) => {
+const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
@@ -10,10 +8,12 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured' }) };
   }
 
+  console.log('Function started, calling Anthropic...');
+
   try {
     const { system, messages } = JSON.parse(event.body);
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,16 +22,19 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
+        max_tokens: 1000,
         system,
         messages
       })
     });
 
-    const data = await res.json();
+    console.log('Anthropic response status:', response.status);
 
-    if (!res.ok) {
-      return { statusCode: res.status, body: JSON.stringify(data) };
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log('Anthropic error:', JSON.stringify(data));
+      return { statusCode: response.status, body: JSON.stringify(data) };
     }
 
     return {
@@ -40,6 +43,9 @@ exports.handler = async (event) => {
       body: JSON.stringify(data)
     };
   } catch (err) {
+    console.log('Function error:', err.message);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+module.exports = { handler };
