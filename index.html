@@ -604,124 +604,105 @@ function goBack(){
 /* ─────────────── PDF EXPORT ─────────────── */
 function downloadPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  if (!jsPDF) { alert('PDF library not loaded'); return; }
+
+  const meta = window._reportMeta || {};
+  const text = window._reportText || '';
+
+  if (!text) { alert('No report to download'); return; }
+
+  const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = 15;
   const maxWidth = pageWidth - margin * 2;
-  let y = 15;
-  const timestamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  let y = 20;
 
-  // Blue header bar
-  doc.setFillColor(46, 97, 254);
-  doc.rect(0, 0, pageWidth, 14, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
+  const addPage = () => { doc.addPage(); y = 20; };
+  const checkPage = (space) => { if (y + (space || 10) > pageHeight - 15) addPage(); };
+
+  // Title
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('TRIVOX AI \u2014 CLINICAL REPORT ENGINE', margin, 9);
-  doc.text('DRAFT \u2014 FOR CLINICIAN REVIEW ONLY', pageWidth - margin, 9, { align: 'right' });
+  doc.setTextColor(46, 97, 254);
+  doc.text((meta.assessmentType || 'Clinical Assessment') + ' Report', margin, y);
+  y += 8;
 
-  y = 24;
-
-  // Assessment type title
-  const meta = window._reportMeta || {};
-  doc.setTextColor(20, 20, 40);
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(meta.assessmentType ? meta.assessmentType + ' Assessment Report' : 'Clinical Assessment Report', margin, y);
-  y += 7;
-
-  // Meta info line
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 130);
-  const dateStr = new Date().toLocaleDateString('en-CA', {year:'numeric', month:'long', day:'numeric'});
-  doc.text('Patient ID: ' + (meta.patientId || '\u2014') + '   |   Date: ' + dateStr + '   |   Status: DRAFT', margin, y);
-  y += 5;
+  doc.setTextColor(100, 100, 100);
+  doc.text('Patient: ' + (meta.patientId || '\u2014') + '  |  Date: ' + new Date().toLocaleDateString() + '  |  DRAFT', margin, y);
+  y += 6;
 
-  // Divider
   doc.setDrawColor(46, 97, 254);
-  doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);
   y += 8;
 
-  // Parse and render sections from window._reportText
-  const text = window._reportText || '';
-  const sections = [
-    'REFERRAL & BACKGROUND',
-    'BEHAVIORAL OBSERVATIONS',
-    'TEST RESULTS & INTERPRETATION',
-    'CLINICAL FORMULATION',
-    'CONCLUSIONS',
-    'RECOMMENDATIONS'
-  ];
+  // Sections
+  const sections = ['REFERRAL & BACKGROUND','BEHAVIORAL OBSERVATIONS','TEST RESULTS & INTERPRETATION','CLINICAL FORMULATION','CONCLUSIONS','RECOMMENDATIONS'];
 
   sections.forEach((section, idx) => {
-    const startIdx = text.indexOf(section);
-    if (startIdx === -1) return;
+    const re = new RegExp('(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?' + section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const match = text.match(re);
+    if (!match) return;
 
-    const nextSection = sections[idx + 1];
-    const afterHeader = text.indexOf('\n', startIdx + section.length);
-    const endIdx = nextSection ? text.indexOf(nextSection, afterHeader) : text.length;
-    const content = text.substring(afterHeader, endIdx !== -1 ? endIdx : text.length).trim();
-    if (!content) return;
+    const startAfter = text.indexOf('\n', match.index + match[0].length);
+    if (startAfter === -1) return;
 
-    // Check if we need a new page
-    if (y > pageHeight - 30) {
-      doc.addPage();
-      y = 20;
+    let endIdx = text.length;
+    for (let j = idx + 1; j < sections.length; j++) {
+      const nextRe = new RegExp('(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?' + sections[j].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const nextMatch = text.slice(startAfter).match(nextRe);
+      if (nextMatch) { endIdx = startAfter + nextMatch.index; break; }
     }
 
-    // Section header background
-    doc.setFillColor(240, 244, 255);
-    doc.rect(margin - 2, y - 4, maxWidth + 4, 8, 'F');
-    doc.setTextColor(46, 97, 254);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text(section, margin, y);
-    y += 8;
+    const content = text.substring(startAfter, endIdx).replace(/\*\*(.+?)\*\*/g, '$1').trim();
+    if (!content) return;
 
-    // Section content
-    doc.setTextColor(40, 40, 60);
+    checkPage(20);
+
+    // Section header
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(46, 97, 254);
+    doc.text(section, margin, y);
+    y += 2;
+    doc.setDrawColor(46, 97, 254);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    // Content
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
 
-    const cleanContent = content
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\[REVIEW REQUIRED[^\]]*\]/g, '[REVIEW REQUIRED]');
-    const lines = doc.splitTextToSize(cleanContent, maxWidth);
-
+    const lines = doc.splitTextToSize(content, maxWidth);
     lines.forEach(line => {
-      if (y > pageHeight - 20) {
-        doc.addPage();
-        y = 20;
-      }
-      // Highlight REVIEW REQUIRED in amber
+      checkPage(6);
       if (line.includes('[REVIEW REQUIRED]')) {
         doc.setTextColor(180, 100, 0);
-        doc.setFont('helvetica', 'italic');
       } else {
-        doc.setTextColor(40, 40, 60);
-        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(40, 40, 40);
       }
       doc.text(line, margin, y);
-      y += 5;
+      y += 4.5;
     });
 
     y += 6;
   });
 
   // Footer on all pages
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
+  const total = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(140, 150, 170);
-    doc.text('Generated by Trivox AI  \u00b7  trivox.ca  \u00b7  Page ' + i + ' of ' + totalPages, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.setTextColor(150, 150, 150);
+    doc.text('Generated by Trivox AI  |  trivox.ca  |  Page ' + i + ' of ' + total, pageWidth / 2, pageHeight - 8, { align: 'center' });
   }
 
-  doc.save('report-' + (meta.patientId || 'export') + '-' + timestamp + '.pdf');
+  const ts = new Date().toISOString().slice(0,10);
+  doc.save('report-' + (meta.patientId || 'export') + '-' + ts + '.pdf');
 }
 </script>
 </body>
