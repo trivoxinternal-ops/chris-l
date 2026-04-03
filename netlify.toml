@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[functions]
+  timeout = 30
+
 [[headers]]
   for = "/*"
   [headers.values]
