@@ -438,22 +438,35 @@ ${data.testNotes || 'None.'}
 
 ${data.files.length ? 'ATTACHED FILES (for reference): ' + data.files.join(', ') : ''}
 
-Please structure the report in EXACTLY these sections:
-1. REFERRAL & BACKGROUND
-2. BEHAVIORAL OBSERVATIONS
-3. TEST RESULTS & INTERPRETATION (interpret each score relative to normative data — classify as e.g., superior, high average, average, low average, borderline, extremely low. Include standard score ranges where applicable.)
-4. CLINICAL FORMULATION
-5. CONCLUSIONS
-6. RECOMMENDATIONS (numbered list)
+Generate a COMPREHENSIVE and THOROUGH clinical report. This must be detailed enough to serve as a real professional document (5-8 printed pages). Structure in EXACTLY these sections:
 
-Where clinical judgment is required or information is missing, insert [REVIEW REQUIRED] tags. Write in third person, past tense, professional clinical tone suitable for a legal or insurance audience.`;
+1. REFERRAL & BACKGROUND — Include referral context, injury/presenting history, premorbid functioning, relevant medical history. Use subsections where appropriate (e.g., "Injury Context & Medical History", "Post-Injury Course").
+
+2. BEHAVIORAL OBSERVATIONS — Detailed observations organized by domain: cognitive-linguistic presentation, affective/mood presentation, fatigue/effort, behavioral engagement. Include specific clinical details.
+
+3. TEST RESULTS & INTERPRETATION — This is the most critical section. Organize by cognitive domain with subsections:
+   - Effort & Validity Measures
+   - Intellectual Functioning (WAIS-IV)
+   - Memory (WMS-IV, CVLT-II)
+   - Attention & Processing Speed (Trail Making, SDMT, Digit Span)
+   - Executive Functioning (Trail Making B, Rey CFT)
+   - Emotional/Psychological Functioning (PHQ-9, GAD-7, PCL-5, BDI-II)
+   For EACH test: state the score, standard score range, percentile rank, classification (Superior/High Average/Average/Low Average/Borderline/Extremely Low), 95% confidence interval, and write a full clinical interpretation paragraph explaining functional implications.
+
+4. CLINICAL FORMULATION — Integrate all findings into a cohesive diagnostic formulation. Discuss differential diagnoses, convergent evidence patterns, premorbid vs current functioning comparison, and functional impact.
+
+5. CONCLUSIONS — Summarize key findings, diagnostic impressions, and answer the referral questions directly. Address fitness to return to work if applicable.
+
+6. RECOMMENDATIONS — Provide 8-10 specific, actionable, numbered clinical recommendations covering treatment, further assessment, workplace accommodations, follow-up, and referrals.
+
+IMPORTANT: Where clinical judgment is required or information is missing, insert [REVIEW REQUIRED] tags. Write in third person, past tense, professional clinical tone suitable for a legal or insurance audience in Ontario, Canada. Be thorough — do not abbreviate or summarize. Every section must be substantive.`;
 
   try {
     const res = await fetch('/.netlify/functions/generate-report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system: 'You are an expert clinical neuropsychologist generating structured psychological assessment reports for a registered psychologist in Ontario, Canada. Use precise, professional clinical language. Structure reports clearly. Flag areas needing clinical judgment with [REVIEW REQUIRED] tags.',
+        system: 'You are an expert clinical neuropsychologist generating comprehensive psychological assessment reports for a registered psychologist in Ontario, Canada. Write thorough, detailed clinical reports suitable for legal, insurance, and clinical audiences. Use precise professional clinical language throughout. Every section must be substantive — never brief or surface-level. For TEST RESULTS & INTERPRETATION: organize by cognitive domain (e.g., Intellectual Functioning, Memory, Attention/Processing Speed, Executive Functioning, Emotional/Psychological Functioning), include the test name, raw score, standard score range, percentile, classification (e.g., Low Average, Borderline, Average), 95% confidence interval where applicable, and a clinical interpretation paragraph for each domain explaining what the score means functionally. For RECOMMENDATIONS: provide at least 6-8 specific, actionable clinical recommendations. Flag any areas needing clinical judgment with [REVIEW REQUIRED] tags. The report must be comprehensive enough to stand as a professional clinical document — typically 5-8 pages when printed.',
         messages: [{role:'user', content: userPrompt}]
       })
     });
