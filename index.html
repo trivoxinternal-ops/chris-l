@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinical Report Engine — TRIVOX AI</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#030810;--bg2:#0a1628;--bg3:#111f3a;
+  --blue:#2E61FE;--cyan:#00F0FF;--white:#f0f4ff;--gray:#8a99b4;
+  --amber:#ffb020;--red:#ff4466;--green:#00e676;
+  --radius:12px;--radius-sm:8px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--white);min-height:100vh;overflow-x:hidden;line-height:1.6}
+a{color:var(--cyan);text-decoration:none}
+
+/* ── Utility ── */
+.container{max-width:960px;margin:0 auto;padding:0 24px}
+.hidden{display:none!important}
+.fade-up{animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Header ── */
+header{padding:20px 0;border-bottom:1px solid rgba(46,97,254,.15);position:sticky;top:0;z-index:100;background:rgba(3,8,16,.92);backdrop-filter:blur(16px)}
+.header-inner{display:flex;align-items:center;justify-content:space-between}
+.logo-area{display:flex;align-items:center;gap:12px}
+.logo-area img{height:32px}
+.logo-area span{font-weight:600;font-size:14px;letter-spacing:1px;color:var(--white)}
+.client-tag{font-size:11px;color:var(--gray);background:var(--bg2);padding:4px 12px;border-radius:20px;border:1px solid rgba(46,97,254,.2)}
+
+/* ── Steps ── */
+.steps-bar{display:flex;justify-content:center;gap:8px;padding:28px 0 12px}
+.step-pill{display:flex;align-items:center;gap:8px;padding:8px 20px;border-radius:40px;font-size:13px;font-weight:500;background:var(--bg2);color:var(--gray);border:1px solid transparent;transition:all .3s}
+.step-pill.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,240,255,.06)}
+.step-pill.done{color:var(--green);border-color:rgba(0,230,118,.25);background:rgba(0,230,118,.06)}
+.step-pill .num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--bg3);color:var(--gray)}
+.step-pill.active .num{background:var(--cyan);color:var(--bg)}
+.step-pill.done .num{background:var(--green);color:var(--bg)}
+.step-arrow{color:var(--gray);font-size:13px;display:flex;align-items:center}
+
+/* ── Sections ── */
+.page-section{padding:32px 0 60px}
+
+/* ── Cards / Inputs ── */
+.card{background:var(--bg2);border:1px solid rgba(46,97,254,.12);border-radius:var(--radius);padding:28px;margin-bottom:20px}
+.card h3{font-size:15px;font-weight:600;color:var(--cyan);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.card h3 .icon{font-size:18px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid.full{grid-template-columns:1fr}
+label.field{display:flex;flex-direction:column;gap:6px}
+label.field span{font-size:12px;font-weight:500;color:var(--gray)}
+input,select,textarea{font-family:'Sora',sans-serif;font-size:14px;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid rgba(46,97,254,.2);background:var(--bg);color:var(--white);outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan)}
+textarea{resize:vertical;min-height:100px}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a99b4' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+select option{background:var(--bg2);color:var(--white)}
+
+/* ── File Upload ── */
+.upload-zone{border:2px dashed rgba(46,97,254,.25);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.upload-zone:hover{border-color:var(--cyan);background:rgba(0,240,255,.03)}
+.upload-zone p{color:var(--gray);font-size:13px}
+.upload-zone .icon{font-size:28px;margin-bottom:8px;color:var(--blue)}
+.file-list{margin-top:10px;font-size:12px;color:var(--cyan)}
+
+/* ── Collapsible ── */
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.collapsible-header .toggle{font-size:11px;color:var(--gray);background:var(--bg);padding:4px 10px;border-radius:20px;border:1px solid rgba(46,97,254,.15)}
+.collapsible-body{overflow:hidden;transition:max-height .4s ease,opacity .3s;max-height:0;opacity:0}
+.collapsible-body.open{max-height:2000px;opacity:1}
+
+/* ── Test Grid ── */
+.test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.test-grid label.field span{font-size:11px}
+.test-grid input{padding:8px 10px;font-size:13px}
+
+/* ── Buttons ── */
+.btn{font-family:'Sora',sans-serif;font-weight:600;font-size:14px;padding:12px 28px;border-radius:var(--radius-sm);border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .25s}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#4a7aff;transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--cyan);border:1px solid var(--cyan)}
+.btn-outline:hover{background:rgba(0,240,255,.08)}
+.btn-secondary{background:var(--bg3);color:var(--white);border:1px solid rgba(46,97,254,.2)}
+.btn-secondary:hover{border-color:var(--blue)}
+.actions-row{display:flex;gap:12px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.actions-row-left{justify-content:flex-start}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+
+/* ── Loading ── */
+.loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center}
+.spinner{width:52px;height:52px;border:3px solid var(--bg3);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:28px}
+.loading-steps{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.loading-steps li{font-size:13px;color:var(--gray);display:flex;align-items:center;gap:10px;transition:color .3s}
+.loading-steps li.active{color:var(--cyan)}
+.loading-steps li.done{color:var(--green)}
+.loading-steps li .dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);flex-shrink:0;transition:background .3s}
+.loading-steps li.active .dot{background:var(--cyan);animation:pulse 1s infinite}
+.loading-steps li.done .dot{background:var(--green)}
+
+/* ── Report ── */
+.report-container{background:var(--bg2);border:1px solid rgba(46,97,254,.15);border-radius:var(--radius);padding:36px;margin-top:8px}
+.report-meta{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(46,97,254,.1)}
+.report-meta .tag{font-size:12px;color:var(--gray)}
+.report-meta .tag strong{color:var(--white)}
+.draft-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--amber);background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.25);padding:3px 12px;border-radius:20px;letter-spacing:.5px}
+.report-section{margin-bottom:28px}
+.report-section h4{font-size:14px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(0,240,255,.1)}
+.report-section p,.report-section li{font-size:13.5px;line-height:1.75;color:rgba(240,244,255,.85)}
+.report-section ol,.report-section ul{padding-left:20px}
+.report-section li{margin-bottom:6px}
+.review-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--amber);background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.2);padding:2px 8px;border-radius:4px;margin:0 2px}
+
+/* ── Error ── */
+.error-box{background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.25);border-radius:var(--radius-sm);padding:16px 20px;color:var(--red);font-size:13px;display:flex;align-items:flex-start;gap:10px;margin-top:16px}
+.error-box .icon{font-size:18px;flex-shrink:0}
+
+/* ── Disclaimer ── */
+.disclaimer{text-align:center;font-size:11px;color:var(--gray);padding:32px 20px 24px;border-top:1px solid rgba(46,97,254,.08);margin-top:40px;line-height:1.7}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .form-grid{grid-template-columns:1fr}
+  .test-grid{grid-template-columns:1fr 1fr}
+  .steps-bar{flex-wrap:wrap;gap:6px}
+  .step-pill{padding:6px 14px;font-size:12px}
+  .step-arrow{display:none}
+  .report-container{padding:20px}
+  .card{padding:20px}
+  .header-inner{flex-direction:column;gap:8px}
+  .actions-row{justify-content:stretch}
+  .actions-row .btn{flex:1;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <div class="container header-inner">
+    <div class="logo-area">
+      <img src="assets/logo-white.png" alt="TRIVOX AI">
+      <span>CLINICAL REPORT ENGINE</span>
+    </div>
+    <div class="client-tag">Demo — Chris L.</div>
+  </div>
+</header>
+
+<!-- ══════════ STEPS ══════════ -->
+<div class="container">
+  <div class="steps-bar" id="stepsBar">
+    <div class="step-pill active" data-step="1"><span class="num">1</span> Input Data</div>
+    <span class="step-arrow">→</span>
+    <div class="step-pill" data-step="2"><span class="num">2</span> Generate</div>
+    <span class="step-arrow">→</span>
+    <div class="step-pill" data-step="3"><span class="num">3</span> Review &amp; Export</div>
+  </div>
+</div>
+
+<!-- ══════════ STEP 1 — INPUT ══════════ -->
+<section class="page-section container" id="stepInput">
+  <div class="actions-row actions-row-left" style="margin-bottom:18px;margin-top:0">
+    <button class="btn btn-outline" onclick="loadDemo()">⬡ Load Demo Case</button>
+    <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+  </div>
+
+  <!-- Patient Info -->
+  <div class="card fade-up">
+    <h3><span class="icon">◉</span> Patient Information</h3>
+    <div class="form-grid">
+      <label class="field"><span>Patient Identifier</span><input id="patientId" placeholder="e.g. PT-2024-001"></label>
+      <label class="field"><span>Assessment Type</span>
+        <select id="assessType">
+          <option value="">Select…</option>
+          <option>Neuropsychological</option>
+          <option>Psychological / Mental Health</option>
+          <option>Psychodiagnostic</option>
+          <option>ADHD</option>
+          <option>Psycho-vocational</option>
+        </select>
+      </label>
+      <label class="field"><span>Age</span><input id="age" type="number" placeholder="e.g. 34"></label>
+      <label class="field"><span>Gender</span><input id="gender" placeholder="e.g. Male"></label>
+      <label class="field"><span>Referral Source</span><input id="referral" placeholder="e.g. Family physician"></label>
+    </div>
+    <div class="form-grid full" style="margin-top:14px">
+      <label class="field"><span>Referral Question / Presenting Concerns</span><textarea id="referralQ" rows="3" placeholder="Describe the referral question…"></textarea></label>
+    </div>
+  </div>
+
+  <!-- Session Notes -->
+  <div class="card fade-up">
+    <h3><span class="icon">◉</span> Session Notes</h3>
+    <label class="field"><span>Clinical Observations</span><textarea id="sessionNotes" rows="6" placeholder="Enter clinical observations from the assessment session…"></textarea></label>
+    <div style="margin-top:16px">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">⬆</div>
+        <p>Drop files here or click to upload<br><span style="font-size:11px;color:var(--gray)">PDF, TXT — filenames captured for reference</span></p>
+        <input type="file" id="fileInput" multiple accept=".pdf,.txt" style="display:none" onchange="handleFiles(this.files)">
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </div>
+
+  <!-- Test Scores -->
+  <div class="card fade-up">
+    <div class="collapsible-header" onclick="toggleTests()">
+      <h3 style="margin-bottom:0"><span class="icon">◉</span> Test Scores</h3>
+      <span class="toggle" id="testToggle">▼ Expand</span>
+    </div>
+    <div class="collapsible-body" id="testBody">
+      <div style="padding-top:18px">
+        <div class="test-grid" id="testGrid"></div>
+        <label class="field" style="margin-top:16px"><span>Additional Test Notes</span><textarea id="testNotes" rows="3" placeholder="Effort indicators, validity observations…"></textarea></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="generateReport()" id="btnGenerate">Generate Report →</button>
+  </div>
+</section>
+
+<!-- ══════════ STEP 2 — LOADING ══════════ -->
+<section class="page-section container hidden" id="stepLoading">
+  <div class="loading-overlay fade-up">
+    <div class="spinner"></div>
+    <p style="font-size:15px;font-weight:500">Generating Clinical Report</p>
+    <p style="font-size:12px;color:var(--gray);margin-top:4px" id="loadingPatient"></p>
+    <ul class="loading-steps" id="loadingSteps">
+      <li><span class="dot"></span> Processing session notes</li>
+      <li><span class="dot"></span> Interpreting test battery</li>
+      <li><span class="dot"></span> Cross-referencing clinical data</li>
+      <li><span class="dot"></span> Structuring report sections</li>
+      <li><span class="dot"></span> Finalizing clinical language</li>
+    </ul>
+    <div id="errorContainer"></div>
+  </div>
+</section>
+
+<!-- ══════════ STEP 3 — REPORT ══════════ -->
+<section class="page-section container hidden" id="stepReport">
+  <div class="fade-up">
+    <div class="report-container" id="reportContainer"></div>
+    <div class="actions-row" style="margin-top:24px">
+      <button class="btn btn-outline" onclick="goBack()">← New Report</button>
+      <button class="btn btn-primary" onclick="downloadPDF()">↓ Download PDF</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ DISCLAIMER ══════════ -->
+<div class="disclaimer">
+  This is a demonstration tool. In production, all patient data is processed within a PHIPA-compliant,<br>
+  Canada-based secure environment. No real patient information should be entered in this demo.<br>
+  <span style="color:rgba(46,97,254,.5);margin-top:6px;display:inline-block">Powered by TRIVOX AI · trivox.ca</span>
+</div>
+
+<script>
+/* ─────────────── CONFIG ─────────────── */
+const TEST_FIELDS = [
+  {id:'phq9',label:'PHQ-9'},
+  {id:'gad7',label:'GAD-7'},
+  {id:'pcl5',label:'PCL-5'},
+  {id:'wais',label:'WAIS-IV FSIQ'},
+  {id:'wmsImi',label:'WMS-IV IMI'},
+  {id:'wmsDmi',label:'WMS-IV DMI'},
+  {id:'trailA',label:'Trail Making A (s)'},
+  {id:'trailB',label:'Trail Making B (s)'},
+  {id:'cvltTotal',label:'CVLT-II Total'},
+  {id:'cvltDelay',label:'CVLT-II Delay'},
+  {id:'sdmt',label:'SDMT Oral'},
+  {id:'dsForward',label:'Digit Span Forward'},
+  {id:'dsBackward',label:'Digit Span Backward'},
+  {id:'reyCft',label:'Rey CFT Copy'},
+  {id:'bdi',label:'BDI-II Total'}
+];
+
+const DEMO = {
+  patientId:'PT-DEMO-2024',
+  assessType:'Neuropsychological',
+  age:'34',gender:'Male',
+  referral:'Insurance / Neurologist',
+  referralQ:'Cognitive and psychological sequelae following motor vehicle collision. Rule out TBI, assess fitness to return to work.',
+  sessionNotes:'Patient is a 34-year-old male referred following a motor vehicle collision 8 months ago. Reports persistent headaches, memory difficulties, irritability, and poor concentration. Prior to MVC, employed as financial analyst with no prior psychiatric or neurological history. During interview, patient was cooperative but demonstrated mild word-finding difficulties. Affect restricted, reports low mood, sleep disturbance, social withdrawal. Denied premorbid cognitive difficulties. Fatigued visibly during latter portion of testing. Effort deemed adequate per validity indicators.',
+  scores:{phq9:'14',gad7:'11',pcl5:'41',wais:'88',wmsImi:'76',wmsDmi:'72',trailA:'58',trailB:'112',cvltTotal:'42',cvltDelay:'8',sdmt:'38',dsForward:'7',dsBackward:'5',reyCft:'28',bdi:'24'},
+  testNotes:'Effort indicators within acceptable range. PVT and TOMM passed. Performance consistency adequate despite reported fatigue.'
+};
+
+/* ─────────────── INIT ─────────────── */
+const grid = document.getElementById('testGrid');
+TEST_FIELDS.forEach(t => {
+  const lbl = document.createElement('label');
+  lbl.className = 'field';
+  lbl.innerHTML = `<span>${t.label}</span><input id="test_${t.id}" type="text" placeholder="—">`;
+  grid.appendChild(lbl);
+});
+
+let uploadedFiles = [];
+
+/* ─────────────── HELPERS ─────────────── */
+function $(id){return document.getElementById(id)}
+function show(id){$(id).classList.remove('hidden')}
+function hide(id){$(id).classList.add('hidden')}
+
+function setStep(n){
+  document.querySelectorAll('.step-pill').forEach(p => {
+    const s = +p.dataset.step;
+    p.classList.remove('active','done');
+    if(s < n) p.classList.add('done');
+    if(s === n) p.classList.add('active');
+  });
+}
+
+function toggleTests(){
+  const body = $('testBody');
+  const tog = $('testToggle');
+  if(body.classList.contains('open')){
+    body.classList.remove('open');
+    tog.textContent = '▼ Expand';
+  } else {
+    body.classList.add('open');
+    tog.textContent = '▲ Collapse';
+  }
+}
+
+function handleFiles(files){
+  Array.from(files).forEach(f => {
+    if(!uploadedFiles.includes(f.name)) uploadedFiles.push(f.name);
+  });
+  $('fileList').innerHTML = uploadedFiles.map(n => `📎 ${n}`).join('<br>');
+}
+
+/* ─────────────── DEMO LOAD ─────────────── */
+function loadDemo(){
+  $('patientId').value = DEMO.patientId;
+  $('assessType').value = DEMO.assessType;
+  $('age').value = DEMO.age;
+  $('gender').value = DEMO.gender;
+  $('referral').value = DEMO.referral;
+  $('referralQ').value = DEMO.referralQ;
+  $('sessionNotes').value = DEMO.sessionNotes;
+  $('testNotes').value = DEMO.testNotes;
+  Object.entries(DEMO.scores).forEach(([k,v]) => {
+    const el = $('test_'+k);
+    if(el) el.value = v;
+  });
+  // Open test section
+  if(!$('testBody').classList.contains('open')) toggleTests();
+}
+
+function clearForm(){
+  ['patientId','assessType','age','gender','referral','referralQ','sessionNotes','testNotes'].forEach(id => $(id).value = '');
+  TEST_FIELDS.forEach(t => $('test_'+t.id).value = '');
+  uploadedFiles = [];
+  $('fileList').innerHTML = '';
+}
+
+/* ─────────────── GATHER DATA ─────────────── */
+function gatherData(){
+  const scores = {};
+  TEST_FIELDS.forEach(t => {
+    const v = $('test_'+t.id).value.trim();
+    if(v) scores[t.label] = v;
+  });
+  return {
+    patientId: $('patientId').value.trim(),
+    assessType: $('assessType').value,
+    age: $('age').value.trim(),
+    gender: $('gender').value.trim(),
+    referral: $('referral').value.trim(),
+    referralQ: $('referralQ').value.trim(),
+    sessionNotes: $('sessionNotes').value.trim(),
+    testNotes: $('testNotes').value.trim(),
+    scores,
+    files: uploadedFiles
+  };
+}
+
+/* ─────────────── GENERATE ─────────────── */
+let reportText = '';
+let reportData = null;
+
+async function generateReport(){
+  const data = gatherData();
+  if(!data.patientId || !data.assessType){
+    alert('Please enter at least a Patient Identifier and Assessment Type.');
+    return;
+  }
+  reportData = data;
+
+  // Show loading
+  hide('stepInput');
+  show('stepLoading');
+  setStep(2);
+  $('loadingPatient').textContent = `${data.patientId} · ${data.assessType} Assessment`;
+  $('errorContainer').innerHTML = '';
+
+  // Animate steps
+  const items = $('loadingSteps').children;
+  Array.from(items).forEach(li => li.classList.remove('active','done'));
+
+  const stepTimers = [];
+  for(let i = 0; i < items.length; i++){
+    stepTimers.push(new Promise(r => setTimeout(() => {
+      if(i > 0) items[i-1].classList.replace('active','done');
+      items[i].classList.add('active');
+      r();
+    }, i * 1800)));
+  }
+
+  // Build prompt
+  let scoreText = Object.entries(data.scores).map(([k,v]) => `${k}: ${v}`).join('\n');
+  if(!scoreText) scoreText = 'No standardized test scores provided.';
+
+  const userPrompt = `Generate a full clinical ${data.assessType} assessment report for the following case.
+
+PATIENT INFORMATION:
+- Patient ID: ${data.patientId}
+- Age: ${data.age || 'Not specified'}
+- Gender: ${data.gender || 'Not specified'}
+- Referral Source: ${data.referral || 'Not specified'}
+- Referral Question: ${data.referralQ || 'Not specified'}
+
+SESSION NOTES / BEHAVIORAL OBSERVATIONS:
+${data.sessionNotes || 'No session notes provided.'}
+
+STANDARDIZED TEST SCORES:
+${scoreText}
+
+ADDITIONAL TEST NOTES:
+${data.testNotes || 'None.'}
+
+${data.files.length ? 'ATTACHED FILES (for reference): ' + data.files.join(', ') : ''}
+
+Please structure the report in EXACTLY these sections:
+1. REFERRAL & BACKGROUND
+2. BEHAVIORAL OBSERVATIONS
+3. TEST RESULTS & INTERPRETATION (interpret each score relative to normative data — classify as e.g., superior, high average, average, low average, borderline, extremely low. Include standard score ranges where applicable.)
+4. CLINICAL FORMULATION
+5. CONCLUSIONS
+6. RECOMMENDATIONS (numbered list)
+
+Where clinical judgment is required or information is missing, insert [REVIEW REQUIRED] tags. Write in third person, past tense, professional clinical tone suitable for a legal or insurance audience.`;
+
+  try {
+    const res = await fetch('/.netlify/functions/generate-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: 'You are an expert clinical neuropsychologist generating structured psychological assessment reports for a registered psychologist in Ontario, Canada. Use precise, professional clinical language. Structure reports clearly. Flag areas needing clinical judgment with [REVIEW REQUIRED] tags.',
+        messages: [{role:'user', content: userPrompt}]
+      })
+    });
+
+    if(!res.ok){
+      const errBody = await res.text();
+      throw new Error(`API returned ${res.status}: ${errBody.slice(0, 200)}`);
+    }
+
+    const json = await res.json();
+    reportText = json.content[0].text;
+
+    // Finish loading animation
+    await Promise.all(stepTimers);
+    items[items.length-1].classList.replace('active','done');
+    await new Promise(r => setTimeout(r, 600));
+
+    renderReport(data, reportText);
+    hide('stepLoading');
+    show('stepReport');
+    setStep(3);
+
+  } catch(err){
+    // Finish any pending steps visually
+    Array.from(items).forEach(li => {li.classList.remove('active');li.classList.add('done')});
+    $('errorContainer').innerHTML = `
+      <div class="error-box" style="margin-top:24px">
+        <span class="icon">⚠</span>
+        <div>
+          <strong>Report generation failed</strong><br>
+          ${err.message}<br><br>
+          <button class="btn btn-outline" onclick="goBack()" style="margin-top:8px">← Back to Input</button>
+        </div>
+      </div>`;
+  }
+}
+
+/* ─────────────── RENDER REPORT ─────────────── */
+function renderReport(data, text){
+  const date = new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+
+  // Parse sections
+  const sectionNames = [
+    'REFERRAL & BACKGROUND',
+    'BEHAVIORAL OBSERVATIONS',
+    'TEST RESULTS & INTERPRETATION',
+    'CLINICAL FORMULATION',
+    'CONCLUSIONS',
+    'RECOMMENDATIONS'
+  ];
+
+  let sections = [];
+  let remaining = text;
+
+  for(let i = 0; i < sectionNames.length; i++){
+    // Try multiple heading patterns
+    const patterns = [
+      new RegExp(`(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?${sectionNames[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*\\n`, 'i'),
+      new RegExp(`(?:^|\\n)\\s*\\**${sectionNames[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\**\\s*\\n`, 'i')
+    ];
+    let matchIdx = -1;
+    let matchLen = 0;
+    for(const p of patterns){
+      const m = remaining.match(p);
+      if(m && (matchIdx === -1 || m.index < matchIdx)){
+        matchIdx = m.index;
+        matchLen = m[0].length;
+      }
+    }
+    if(matchIdx !== -1){
+      remaining = remaining.slice(matchIdx + matchLen);
+    }
+    // Find next section start
+    let endIdx = remaining.length;
+    if(i < sectionNames.length - 1){
+      for(const nextName of sectionNames.slice(i+1)){
+        const np = [
+          new RegExp(`(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?${nextName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`, 'i'),
+          new RegExp(`(?:^|\\n)\\s*\\**${nextName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\**`, 'i')
+        ];
+        for(const p of np){
+          const m = remaining.match(p);
+          if(m && m.index < endIdx) endIdx = m.index;
+        }
+      }
+    }
+    sections.push({name: sectionNames[i], content: remaining.slice(0, endIdx).trim()});
+    remaining = remaining.slice(endIdx);
+  }
+
+  // If parsing failed, just show raw
+  if(sections.every(s => !s.content)){
+    sections = [{name: 'FULL REPORT', content: text}];
+  }
+
+  function formatContent(c){
+    // Handle [REVIEW REQUIRED]
+    c = c.replace(/\[REVIEW REQUIRED\]/g, '<span class="review-tag">REVIEW REQUIRED</span>');
+    // Bold
+    c = c.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Numbered lists
+    c = c.replace(/(?:^|\n)(\d+)\.\s+/g, '\n<li>');
+    if(c.includes('<li>')){
+      c = '<ol>' + c + '</ol>';
+      c = c.replace(/<\/ol>\s*<ol>/g, '');
+    }
+    // Paragraphs
+    c = c.split(/\n{2,}/).map(p => {
+      p = p.trim();
+      if(!p || p.startsWith('<ol>') || p.startsWith('<li>')) return p;
+      return `<p>${p}</p>`;
+    }).join('');
+    return c;
+  }
+
+  let html = `
+    <div class="report-meta">
+      <div class="tag"><strong>${data.patientId}</strong></div>
+      <div class="tag">${data.assessType} Assessment</div>
+      <div class="tag">${date}</div>
+      <div class="draft-badge">DRAFT — FOR CLINICIAN REVIEW</div>
+    </div>`;
+
+  sections.forEach(s => {
+    if(!s.content) return;
+    html += `
+      <div class="report-section">
+        <h4>${s.name}</h4>
+        ${formatContent(s.content)}
+      </div>`;
+  });
+
+  $('reportContainer').innerHTML = html;
+}
+
+/* ─────────────── NAVIGATION ─────────────── */
+function goBack(){
+  hide('stepLoading');
+  hide('stepReport');
+  show('stepInput');
+  setStep(1);
+  // Reset loading steps
+  Array.from($('loadingSteps').children).forEach(li => li.classList.remove('active','done'));
+}
+
+/* ─────────────── PDF EXPORT ─────────────── */
+function downloadPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const W = 210, H = 297;
+  const ML = 20, MR = 20, MT = 40;
+  const PW = W - ML - MR;
+  let y = 0;
+  let pageNum = 1;
+  const date = new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'});
+  const timestamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+
+  function addHeader(){
+    // Blue bar
+    doc.setFillColor(46, 97, 254);
+    doc.rect(0, 0, W, 28, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255,255,255);
+    doc.text('TRIVOX AI  —  CLINICAL REPORT ENGINE', ML, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica','normal');
+    doc.text('DRAFT — FOR CLINICIAN REVIEW', ML, 20);
+    y = MT;
+  }
+
+  function addFooter(){
+    doc.setFontSize(8);
+    doc.setTextColor(120,140,170);
+    doc.setFont('helvetica','normal');
+    const footer = `Generated by Trivox AI  ·  trivox.ca  ·  Page ${pageNum}`;
+    doc.text(footer, W/2, H - 12, {align:'center'});
+  }
+
+  function checkPage(needed){
+    if(y + needed > H - 22){
+      addFooter();
+      doc.addPage();
+      pageNum++;
+      addHeader();
+    }
+  }
+
+  function writeWrapped(text, fontSize, isBold, color, indent){
+    indent = indent || 0;
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, PW - indent);
+    const lineH = fontSize * 0.45;
+    lines.forEach(line => {
+      checkPage(lineH + 2);
+      doc.text(line, ML + indent, y);
+      y += lineH;
+    });
+    y += 2;
+  }
+
+  addHeader();
+
+  // Title
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.setTextColor(240,244,255);
+  doc.text(`${reportData.assessType} Assessment Report`, ML, y);
+  y += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(138,153,180);
+  doc.text(`Patient: ${reportData.patientId}    |    Date: ${date}`, ML, y);
+  y += 12;
+
+  // Sections — parse from reportText
+  const sectionNames = [
+    'REFERRAL & BACKGROUND',
+    'BEHAVIORAL OBSERVATIONS',
+    'TEST RESULTS & INTERPRETATION',
+    'CLINICAL FORMULATION',
+    'CONCLUSIONS',
+    'RECOMMENDATIONS'
+  ];
+
+  let remaining = reportText;
+  const parsed = [];
+
+  for(let i = 0; i < sectionNames.length; i++){
+    const patterns = [
+      new RegExp(`(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?${sectionNames[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*\\n`, 'i'),
+      new RegExp(`(?:^|\\n)\\s*\\**${sectionNames[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\**\\s*\\n`, 'i')
+    ];
+    let matchIdx = -1, matchLen = 0;
+    for(const p of patterns){
+      const m = remaining.match(p);
+      if(m && (matchIdx === -1 || m.index < matchIdx)){matchIdx = m.index; matchLen = m[0].length;}
+    }
+    if(matchIdx !== -1) remaining = remaining.slice(matchIdx + matchLen);
+    let endIdx = remaining.length;
+    if(i < sectionNames.length - 1){
+      for(const nextName of sectionNames.slice(i+1)){
+        const np = [
+          new RegExp(`(?:^|\\n)\\s*(?:#{1,3}\\s*)?(?:\\d+\\.?\\s*)?${nextName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`, 'i'),
+          new RegExp(`(?:^|\\n)\\s*\\**${nextName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\**`, 'i')
+        ];
+        for(const p of np){const m = remaining.match(p);if(m && m.index < endIdx) endIdx = m.index;}
+      }
+    }
+    parsed.push({name: sectionNames[i], content: remaining.slice(0, endIdx).trim()});
+    remaining = remaining.slice(endIdx);
+  }
+
+  if(parsed.every(s => !s.content)){
+    parsed.length = 0;
+    parsed.push({name: 'REPORT', content: reportText});
+  }
+
+  parsed.forEach(section => {
+    if(!section.content) return;
+    checkPage(14);
+    // Section heading
+    doc.setFillColor(46, 97, 254);
+    doc.rect(ML, y - 4, PW, 8, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255,255,255);
+    doc.text(section.name, ML + 4, y + 1);
+    y += 10;
+
+    // Clean markdown
+    let clean = section.content
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\[REVIEW REQUIRED\]/g, '** [REVIEW REQUIRED] **');
+
+    const paragraphs = clean.split(/\n{2,}/);
+    paragraphs.forEach(p => {
+      p = p.trim();
+      if(!p) return;
+      // Numbered items
+      const numMatch = p.match(/^(\d+)\.\s+(.*)/s);
+      if(numMatch){
+        writeWrapped(`${numMatch[1]}. ${numMatch[2]}`, 9.5, false, [200,210,230], 4);
+      } else {
+        writeWrapped(p, 9.5, false, [200,210,230], 0);
+      }
+      y += 1;
+    });
+    y += 4;
+  });
+
+  // Update total pages
+  const totalPages = pageNum;
+  addFooter();
+
+  // Fix page footers with total
+  for(let i = 1; i <= totalPages; i++){
+    doc.setPage(i);
+    doc.setFillColor(3, 8, 16);
+    doc.rect(0, H - 18, W, 18, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(120,140,170);
+    doc.setFont('helvetica','normal');
+    doc.text(`Generated by Trivox AI  ·  trivox.ca  ·  Page ${i} of ${totalPages}`, W/2, H - 12, {align:'center'});
+  }
+
+  doc.save(`report-${reportData.patientId}-${timestamp}.pdf`);
+}
+</script>
+</body>
+</html>
